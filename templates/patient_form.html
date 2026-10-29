@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit patient' if edit_mode else 'Add patient' }} | HRPFOS{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">PATIENT FLOW</p><h1>{{ 'Edit patient' if edit_mode else 'Register patient' }}</h1><p class="muted">{{ 'Update the patient record and save the latest details.' if edit_mode else 'Add a new patient to the hospital flow queue.' }}</p></div></div>
+<div class="panel form-panel"><form method="post">
+  <label>Patient name<input name="name" required placeholder="e.g. Ananya Sharma" value="{{ patient.name if patient else '' }}"></label>
+  <label>Age<input name="age" type="number" min="1" max="129" required value="{{ patient.age if patient else '' }}"></label>
+  <label>Department<select name="department">{% for department in ['Emergency','Cardiology','Orthopedics','Pediatrics','General Medicine'] %}<option {% if patient and patient.department == department %}selected{% endif %}>{{ department }}</option>{% endfor %}</select></label>
+  <label>Problem / diagnosis<input name="problem" required placeholder="e.g. Chest pain" value="{{ patient.problem if patient else '' }}"></label>
+  <label>Phone number<input name="phone" type="tel" placeholder="e.g. 9876543210" value="{{ patient.phone if patient and patient.phone else '' }}"></label>
+  <label>Emergency contact<input name="emergency_contact" placeholder="Name and phone" value="{{ patient.emergency_contact if patient and patient.emergency_contact else '' }}"></label>
+  <label>Blood group<select name="blood_group"><option value="">Not recorded</option>{% for item in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] %}<option {% if patient and patient.blood_group == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+  <label>Address<textarea name="address" rows="2" placeholder="Patient address">{{ patient.address if patient and patient.address else '' }}</textarea></label>
+  <label>Priority<select name="priority">{% for item in ['High','Medium','Low'] %}<option {% if (patient and patient.priority == item) or (not patient and item == 'Medium') %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+  <label>Operation/treatment time (optional)<input name="operation_time" type="datetime-local" value="{{ patient.operation_time if patient and patient.operation_time else '' }}"></label>
+  {% if edit_mode %}<label>Assign bed<select name="assigned_bed_id"><option value="">No bed assigned</option>{% for bed in beds %}<option value="{{ bed.id }}" {% if patient.assigned_bed_id == bed.id %}selected{% endif %}>{{ bed.bed_number }} · {{ bed.ward }} · {{ bed.bed_type }}{% if bed.status == 'Occupied' %} (current){% endif %}</option>{% endfor %}</select></label>
+  <label>Assign doctor/nurse<select name="assigned_staff_id"><option value="">No staff assigned</option>{% for member in staff %}<option value="{{ member.id }}" {% if patient.assigned_staff_id == member.id %}selected{% endif %}>{{ member.name }} · {{ member.role }} · {{ member.department }}{% if member.status == 'Busy' %} (current){% endif %}</option>{% endfor %}</select></label>{% endif %}
+  <div class="form-actions"><a href="{{ url_for('patients') }}">Cancel</a><button class="button" type="submit">{{ 'Save changes' if edit_mode else 'Register patient' }}</button></div>
+</form></div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends 'base.html' %}{% block title %}Dashboard | HRPFOS{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">HOSPITAL OPERATIONS</p><h1>Resource & Patient Flow Dashboard</h1><p class="muted">Synthetic data view for operational planning and optimization.</p></div><div class="dashboard-actions"><span class="live-badge"><i></i>LIVE · <b id="live-status">connecting</b> · updated <time id="last-updated"></time></span><a class="button" href="{{ url_for('add_patient') }}">+ Add patient</a></div></div>
+<style>.dashboard-actions{align-items:center;display:flex;flex-wrap:wrap;gap:12px;justify-content:flex-end}.live-badge{align-items:center;background:#eaf7f1;border-radius:20px;color:#147a55;display:inline-flex;font-size:11px;font-weight:700;gap:5px;padding:7px 10px}.live-badge i{animation:live-pulse 1.5s infinite;background:#18a673;border-radius:50%;height:8px;width:8px}.live-badge time{font-variant-numeric:tabular-nums}@keyframes live-pulse{50%{box-shadow:0 0 0 4px #18a6732b}}@media(max-width:800px){.dashboard-actions{justify-content:flex-start}}</style>
+<style>.live-badge.live-updated{animation:live-refresh-flash .35s ease-in-out 6}@keyframes live-refresh-flash{50%{background:#c9efdc;box-shadow:0 0 0 5px #18a67333}}</style>
+<section class="metrics">
+  <div class="metric"><span>Total patients</span><strong>{{ metrics.total_patients }}</strong><small>Recorded today</small></div>
+  <div class="metric warning"><span>Waiting patients</span><strong>{{ metrics.waiting_patients }}</strong><small>Avg. wait: {{ metrics.average_wait }} min</small></div>
+  <div class="metric"><span>Available beds</span><strong>{{ metrics.available_beds }}/{{ metrics.total_beds }}</strong><small>{{ metrics.bed_occupancy }}% occupancy</small></div>
+  <div class="metric"><span>Available staff</span><strong>{{ metrics.available_staff }}/{{ metrics.total_staff }}</strong><small>{{ metrics.staff_utilization }}% utilization</small></div>
+</section>
+<section class="grid two-col">
+  <div class="panel"><div class="panel-title"><h2>Optimization recommendations</h2><span class="pill">LIVE</span></div>{% for level, text in recommendations %}<div class="recommendation"><b>{{ level }}</b><p>{{ text }}</p></div>{% endfor %}</div>
+  <div class="panel"><div class="panel-title"><h2>Resource utilization</h2></div><div class="bar-label"><span>Beds</span><b>{{ metrics.bed_occupancy }}%</b></div><div class="bar"><i style="width:{{ metrics.bed_occupancy }}%"></i></div><div class="bar-label"><span>Staff</span><b>{{ metrics.staff_utilization }}%</b></div><div class="bar"><i style="width:{{ metrics.staff_utilization }}%"></i></div><div class="mini-stat"><span>Available ambulances</span><strong>{{ metrics.available_ambulances }}</strong></div></div>
+</section>
+<section class="grid two-col">
+  <div class="panel"><div class="panel-title"><h2>Current bed assignments</h2><a href="{{ url_for('resources') }}">Manage resources</a></div><div class="table-wrap"><table><thead><tr><th>Bed</th><th>Ward</th><th>Patient</th><th>Expected discharge</th></tr></thead><tbody>{% for bed in bed_assignments %}<tr><td><b>{{ bed.bed_number }}</b></td><td>{{ bed.ward }}</td><td>{{ bed.patient_name }}<small>{{ bed.department }}</small></td><td>{{ bed.expected_discharge or 'Not set' }}</td></tr>{% else %}<tr><td colspan="4">No patients are linked to beds.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="panel"><div class="panel-title"><h2>Current staff assignments</h2><a href="{{ url_for('resources') }}">Manage staff</a></div><div class="table-wrap"><table><thead><tr><th>Staff member</th><th>Role / shift</th><th>Patient</th><th>Department</th></tr></thead><tbody>{% for assignment in staff_assignments %}<tr><td><b>{{ assignment.staff_name }}</b></td><td>{{ assignment.role }}<small>{{ assignment.shift or 'Day' }} shift</small></td><td>{{ assignment.patient_name }}</td><td>{{ assignment.department }}</td></tr>{% else %}<tr><td colspan="4">No patients are linked to staff.</td></tr>{% endfor %}</tbody></table></div></div>
+</section>
+<section class="grid two-col">
+  <div class="panel"><div class="panel-title"><h2>Recent patient flow</h2><a href="{{ url_for('patients') }}">View all →</a></div><div class="table-wrap"><table><thead><tr><th>Patient</th><th>Department</th><th>Priority</th><th>Status</th></tr></thead><tbody>{% for patient in recent_patients %}<tr><td>{{ patient.name }}</td><td>{{ patient.department }}</td><td><span class="priority {{ patient.priority|lower }}">{{ patient.priority }}</span></td><td>{{ patient.status }}</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="panel"><div class="panel-title"><h2>Ambulance locations</h2><span class="map-key">● Available</span></div><div class="map">{% for ambulance in ambulances %}<span class="marker {{ ambulance.status|lower|replace(' ', '-') }}" style="left:{{ ((ambulance.longitude - 77.42) * 700)|int }}px;top:{{ ((28.54 - ambulance.latitude) * 700)|int }}px" title="{{ ambulance.ambulance_number }} — {{ ambulance.status }}">✚</span>{% endfor %}<div class="map-label">Greater Noida service area</div></div></div>
+</section>
+<script>
+(() => {
+  const status = document.getElementById("live-status");
+  const updatedAt = document.getElementById("last-updated");
+  const badge = document.querySelector(".live-badge");
+  const updateFlag = "hrpfos-dashboard-updated";
+  let justUpdated = sessionStorage.getItem(updateFlag) === "1";
+  let hasConnected = false;
+  updatedAt.textContent = new Date().toLocaleTimeString();
+  if (justUpdated) {
+    sessionStorage.removeItem(updateFlag);
+    status.textContent = "updated just now";
+    badge.classList.add("live-updated");
+    window.setTimeout(() => {
+      status.textContent = "connected";
+      badge.classList.remove("live-updated");
+    }, 2500);
+  }
+  const reloadForUpdate = () => {
+    sessionStorage.setItem(updateFlag, "1");
+    status.textContent = "updating";
+    window.location.reload();
+  };
+  const updates = new EventSource("{{ url_for('dashboard_events') }}");
+  updates.onopen = () => {
+    if (hasConnected) {
+      reloadForUpdate();
+      return;
+    }
+    hasConnected = true;
+    if (!justUpdated) status.textContent = "connected";
+  };
+  updates.onerror = () => { status.textContent = "reconnecting"; };
+  updates.addEventListener("update", reloadForUpdate);
+})();
+</script>
+{% endblock %}

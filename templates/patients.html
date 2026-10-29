@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Patients | HRPFOS{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">PATIENT FLOW</p><h1>Patient queue</h1><p class="muted">Track patient problem, priority, status, and treatment time.</p></div>
+  <div class="export-links"><a href="{{ url_for('export_resource', resource='patients') }}">Export CSV</a><form class="import-form" method="post" action="{{ url_for('import_resource', resource='patients') }}" enctype="multipart/form-data"><input type="file" name="file" accept=".csv" required><button type="submit">Import CSV</button></form><a class="button" href="{{ url_for('add_patient') }}">+ Add patient</a></div>
+</div>
+<section class="metrics status-summary">
+  <div class="metric warning"><span>Waiting</span><strong>{{ status_counts.get('Waiting', 0) }}</strong></div>
+  <div class="metric"><span>In consultation</span><strong>{{ status_counts.get('In Consultation', 0) }}</strong></div>
+  <div class="metric"><span>Admitted</span><strong>{{ status_counts.get('Admitted', 0) }}</strong></div>
+  <div class="metric"><span>In operation</span><strong>{{ status_counts.get('In Operation', 0) }}</strong></div>
+  <div class="metric"><span>Completed</span><strong>{{ status_counts.get('Completed', 0) }}</strong></div>
+  <div class="metric"><span>Discharged</span><strong>{{ status_counts.get('Discharged', 0) }}</strong></div>
+</section>
+<form class="patient-filters" method="get" action="{{ url_for('patients') }}">
+  <input type="search" name="q" value="{{ filters.q }}" placeholder="Search name, problem, department">
+  <select name="department"><option value="">All departments</option>{% for item in departments %}<option value="{{ item.department }}" {% if filters.department == item.department %}selected{% endif %}>{{ item.department }}</option>{% endfor %}</select>
+  <select name="priority"><option value="">All priorities</option>{% for item in ['High', 'Medium', 'Low'] %}<option value="{{ item }}" {% if filters.priority == item %}selected{% endif %}>{{ item }} priority</option>{% endfor %}</select>
+  <select name="status"><option value="">All statuses</option>{% for item in ['Waiting', 'In Consultation', 'Admitted', 'In Operation', 'Completed', 'Discharged'] %}<option value="{{ item }}" {% if filters.status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+  <button class="button" type="submit">Apply filters</button><a class="clear-filter" href="{{ url_for('patients') }}">Clear</a>
+</form>
+<div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Department</th><th>Problem</th><th>Priority</th><th>Arrival</th><th>Waiting time</th><th>Last status update</th><th>Bed</th><th>Assigned staff</th><th>Operation time</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+{% for patient in patients %}<tr><td><a class="patient-link" href="{{ url_for('patient_detail', patient_id=patient.id) }}"><b>{{ patient.name }}</b></a><small>Age {{ patient.age }}</small></td><td>{{ patient.department }}</td><td>{{ patient.problem or 'General check-up' }}</td><td><span class="priority {{ patient.priority|lower }}">{{ patient.priority }}</span></td><td>{{ patient.arrival_time|replace('T', ' ') }}</td><td><b>{{ patient.waiting_text }}</b></td><td>{{ patient.status_updated_at|replace('T', ' ') if patient.status_updated_at else 'Not updated' }}</td><td>{{ patient.assigned_bed_number or 'Not assigned' }}</td><td>{{ patient.assigned_staff_name or 'Not assigned' }}</td><td>{{ patient.operation_time|replace('T', ' ') if patient.operation_time else 'Not operated' }}</td><td><form class="inline-form" method="post" action="{{ url_for('update_patient_status', patient_id=patient.id) }}"><select name="status" onchange="this.form.submit()">{% for status in ['Waiting','In Consultation','Admitted','In Operation','Completed','Discharged'] %}<option {% if patient.status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></form></td><td><a class="edit-link" href="{{ url_for('edit_patient', patient_id=patient.id) }}">Edit</a></td></tr>
+{% else %}<tr><td colspan="12">No patient records found.</td></tr>{% endfor %}
+</tbody></table></div></div>
+<div class="pagination">{% if page > 1 %}<a href="{{ url_for('patients', q=filters.q, department=filters.department, priority=filters.priority, status=filters.status, page=page-1) }}">← Previous</a>{% endif %}<span>Page {{ page }} of {{ total_pages }}</span>{% if page < total_pages %}<a href="{{ url_for('patients', q=filters.q, department=filters.department, priority=filters.priority, status=filters.status, page=page+1) }}">Next →</a>{% endif %}</div>
+<style>.status-summary{grid-template-columns:repeat(6,1fr)}.patient-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:18px 0}.patient-filters input,.patient-filters select{border:1px solid #dce2ed;border-radius:6px;padding:9px 10px;background:white}.clear-filter,.edit-link,.patient-link{color:var(--blue);font-weight:700;text-decoration:none}.pagination{display:flex;justify-content:center;align-items:center;gap:18px;margin:18px 0}.pagination a{color:var(--blue);font-weight:700;text-decoration:none}.export-links{align-items:center;display:flex;gap:10px;flex-wrap:wrap}.export-links a:not(.button){color:var(--blue);font-weight:700;text-decoration:none}.import-form{display:flex;gap:4px;align-items:center}.import-form input{max-width:130px;font-size:11px}.import-form button{background:var(--soft);border:1px solid #dce2ed;border-radius:5px;color:var(--blue);cursor:pointer;padding:5px}.table-wrap small{color:var(--muted);display:block}.inline-form select{border:1px solid #dce2ed;border-radius:6px;padding:6px}</style>
+{% endblock %}

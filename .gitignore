@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.db
+*.db-*
+*.log
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+.vscode/
+.idea/
+.aws/
+.codex/
+.agents/
+tmp*/
+publish_github.py
